@@ -28,13 +28,13 @@ char *compute_get_request(char *host, char *url, char *query_params,
     compute_message(message, line);
 
     // Step 2: add the host
-    sprintf(line, "HostL %s", host);
+    sprintf(line, "Host: %s", host);
     compute_message(message, line);
     // Step 3 (optional): add headers and/or cookies, according to the protocol format
     if (cookies != NULL && cookies_count > 0) {
        sprintf(line, "Cookie: ");
        for (int i = 0; i < cookies_count; ++i) {
-           sprintf(line + strlen(line), " %s;", cookies[i]);
+           sprintf(line + strlen(line), "%s; ", cookies[i]);
        }
        line[strlen(line) - 1] = '\n';
        compute_message(message, line);
@@ -59,7 +59,7 @@ char *compute_post_request(char *host, char *url, char* content_type, char **bod
     }
 
     // Step 1: write the method name, URL and protocol type
-    sprintf(line, "POST: %s HTTP/1.1", url);
+    sprintf(line, "POST %s HTTP/1.1", url);
     compute_message(message, line);
     
     // Step 2: add the host
@@ -71,7 +71,7 @@ char *compute_post_request(char *host, char *url, char* content_type, char **bod
     sprintf(line, "Content-Type: %s", content_type);
     compute_message(message, line);
 
-    sprintf(line, "Content-Length %d", (int) strlen(body_data_buffer));
+    sprintf(line, "Content-Length: %d", (int) strlen(body_data_buffer));
     compute_message(message, line);
     // Step 4 (optional): add cookies
     if (cookies != NULL && cookies_count > 0) {

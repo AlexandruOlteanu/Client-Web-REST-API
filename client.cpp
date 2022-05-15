@@ -10,8 +10,11 @@
 #include "helpers.h"
 #include "requests.h"
 #include "error.h"
+#include "json.hpp"
 
 using namespace std;
+
+using json = nlohmann::json;
 
 vector<string> command_options;
 
@@ -41,14 +44,18 @@ int main(int argc, char *argv[])
     string message;
     string command;
     string response;
-    int32_t server_socket = -1;
-    server_socket = open_connection(host_ip, 8080, PF_INET, SOCK_STREAM, 0);
-    ERROR(server_socket < 0, "Error, oppening connection failed");
 
     add_default_command_options();
     int32_t count = 0;
 
+    string current_cookie = "";
+    string current_token = "";
+
     while (true) {
+        int32_t server_socket = -1;
+        server_socket = open_connection(host_ip, 8080, PF_INET, SOCK_STREAM, 0);
+        ERROR(server_socket < 0, "Error, oppening connection failed");
+
         cout << "Enter one of the commands : ";
         count = 0;
         for (auto option : command_options) {
@@ -70,18 +77,100 @@ int main(int argc, char *argv[])
             continue;
         }
         if (command == "exit") {
+            shutdown(server_socket, SHUT_RDWR);
             break;       
         }
 
-        if (command == "reqister") {
+        if (command == "register") {
 
-            
+            json info;
+            string username, password;
+            cout << "username=";
+            getline(cin, username);
+            cout << "password=";
+            getline(cin, password);
+            info["username"] = username;
+            info["password"] = password;
 
+            char **data_matrix = (char **)malloc(sizeof(char *));
+            data_matrix[0] = (char *)malloc(100 * sizeof(char));
+            strcpy(data_matrix[0], info.dump().c_str());
+            string server_request = compute_post_request(host_ip, "/api/v1/tema/auth/register", "application/json", data_matrix, 1, NULL, 0);
+            cout << server_request << '\n';
+            send_to_server(server_socket, (char *) server_request.c_str());
+
+            string result = receive_from_server(server_socket);
+            cout << result << '\n';
+            if (result.find("error") != string::npos) {
+                cout << "Username is already taken\n";
+            }
+            else {
+                cout << "New user with username: " << username << " was created!\n";
+            }
+            continue;
+        }
+        
+        if (command == "login") {
+            json info;
+            string username, password;
+            cout << "username=";
+            getline(cin, username);
+            cout << "password=";
+            getline(cin, password);
+            info["username"] = username;
+            info["password"] = password;
+
+            char **data_matrix = (char **)malloc(sizeof(char *));
+            data_matrix[0] = (char *)malloc(100 * sizeof(char));
+            strcpy(data_matrix[0], info.dump().c_str());
+            string server_request = compute_post_request(host_ip, "/api/v1/tema/auth/login", "application/json", data_matrix, 1, NULL, 0);
+            cout << server_request << '\n';
+            send_to_server(server_socket, (char *) server_request.c_str());
+
+            string result = receive_from_server(server_socket);
+            cout << result << '\n';
+            if (result.find("error") != string::npos) {
+                cout << "Invalid Login Data\n";
+            }
+            else {
+                current_cookie = strstr(result.c_str(), "connect.sid=");
+                for (int i = 0; i < current_cookie.size(); ++i) {
+                    if (current_cookie[i] == ';') {
+                        current_cookie = current_cookie.substr(0, i);
+                        break;
+                    }
+                }
+                cout << "Login succesfully!\n";
+            }
+            continue;
         }
 
-    }
+        if (command == "enter_library") {
 
-    shutdown(server_socket, SHUT_RDWR);
+            char **cookies_matrix = (char **)malloc(sizeof(char *));
+            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
+            strcpy(cookies_matrix[0], current_cookie.c_str());
+            string server_request = compute_get_request(host_ip, "/api/v1/tema/library/access", NULL, cookies_matrix, 1);
+            send_to_server(server_socket, (char *) server_request.c_str());
+
+            string result = receive_from_server(server_socket);
+            result = strstr(result.c_str(), "{");
+            json info;
+
+            info = json::parse(result);
+            current_token = info["token"];
+            cout << current_token << '\n';
+            if (result.find("error") != string::npos) {
+                cout << "Invalid Access\n";
+            }
+            else {
+                cout << "Access Success!\n";
+            }
+        }
+
+        
+
+    }
 
     return 0;
 }
