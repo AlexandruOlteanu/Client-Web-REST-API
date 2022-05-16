@@ -14,6 +14,8 @@
 
 using namespace std;
 
+#define MAX_SIZE 1000
+
 using json = nlohmann::json;
 
 vector<string> command_options;
@@ -34,6 +36,11 @@ void add_command_option(string option) {
     command_options.push_back(option);
 }
 
+struct needed_rights {
+    bool loged_in_on_server = false;
+    bool registered_to_library = false;
+};
+
 json get_user_credentials() {
     json info;
     string username, password;
@@ -45,6 +52,20 @@ json get_user_credentials() {
     info["password"] = password;
     return info;
 }
+
+string extract_cookie(string initial) {
+    string result = initial;
+    result = strstr(initial.c_str(), "connect.sid=");
+
+    int i = 0;
+    for (auto c : result) {
+        if (c == ';') {
+            return result.substr(0, i);
+        }
+        ++i;
+    }
+    return "";
+}   
 
 
 int main(int argc, char *argv[])
@@ -64,16 +85,8 @@ int main(int argc, char *argv[])
     string current_cookie = "";
     string current_token = "";
 
-
-    char **data_matrix = (char **)malloc(sizeof(char *));
-    data_matrix[0] = (char *)malloc(100 * sizeof(char));
-
-    char **cookies_matrix = (char **)malloc(sizeof(char *));
-    cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
-
-    char **jwt_matrix = (char **)malloc(sizeof(char *));
-    jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
-
+    needed_rights rights;
+    
     while (true) {
         int32_t server_socket = -1;
         server_socket = open_connection(server_host_ip, server_port, PF_INET, SOCK_STREAM, 0);
@@ -105,11 +118,15 @@ int main(int argc, char *argv[])
         }
 
         if (command == "register") {
+            
+            if (rights.loged_in_on_server) {
+                cout << "Error, already logged in!\n";
+                continue;
+            }
 
             json info = get_user_credentials();
 
-            strcpy(data_matrix[0], info.dump().c_str());
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/register", "application/json", data_matrix, 1, NULL, 0, NULL, 0);
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/register", "application/json", (char *) info.dump().c_str(), NULL, NULL);
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -126,10 +143,14 @@ int main(int argc, char *argv[])
         
         if (command == "login") {
             
+            if (rights.loged_in_on_server) {
+                cout << "Error, already logged in!\n";
+                continue;
+            }
+
             json info = get_user_credentials();
 
-            strcpy(data_matrix[0], info.dump().c_str());
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/login", "application/json", data_matrix, 1, NULL, 0, NULL, 0);
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/login", "application/json", (char *) info.dump().c_str(), NULL, NULL);
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -139,13 +160,8 @@ int main(int argc, char *argv[])
                 cout << "Invalid Login Data\n";
             }
             else {
-                current_cookie = strstr(result.c_str(), "connect.sid=");
-                for (int i = 0; i < current_cookie.size(); ++i) {
-                    if (current_cookie[i] == ';') {
-                        current_cookie = current_cookie.substr(0, i);
-                        break;
-                    }
-                }
+                current_cookie = extract_cookie(result);
+                rights.loged_in_on_server = true;
                 cout << "Login succesfully!\n";
             }
             continue;
@@ -153,9 +169,12 @@ int main(int argc, char *argv[])
 
         if (command == "enter_library") {
 
+            if (!rights.loged_in_on_server) {
+                cout << "Error, not logged in!\n";
+                continue;
+            }
             
-            strcpy(cookies_matrix[0], current_cookie.c_str());
-            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/access", NULL, NULL, 0, cookies_matrix, 1);
+            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/access", NULL, NULL, (char *) current_cookie.c_str());
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
@@ -175,11 +194,9 @@ int main(int argc, char *argv[])
         }
 
         if (command == "get_books") {
-            strcpy(cookies_matrix[0], current_cookie.c_str());
 
-            strcpy(jwt_matrix[0], current_token.c_str());
-
-            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/books", NULL, jwt_matrix, 1, cookies_matrix, 1);
+            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/books", NULL,
+                                         (char *) current_token.c_str(), (char *) current_cookie.c_str());
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -203,13 +220,9 @@ int main(int argc, char *argv[])
             cin >> id_book;
 
             string url = "/api/v1/tema/library/books/" + id_book;
-            
-            strcpy(cookies_matrix[0], current_cookie.c_str());
 
-            strcpy(jwt_matrix[0], current_token.c_str());
-
-
-            string server_request = compute_get_request(server_host_ip, (char *) url.c_str(), NULL, jwt_matrix, 1, cookies_matrix, 1);
+            string server_request = compute_get_request(server_host_ip, (char *) url.c_str(), NULL,
+                                 (char *) current_token.c_str(), (char *) current_cookie.c_str());
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -245,29 +258,20 @@ int main(int argc, char *argv[])
             getline(cin, author);
             info["author"] = author;
 
-
             cout << "genre=";
             getline(cin, genre);
             info["genre"] = genre;
-
 
             cout << "publisher=";
             getline(cin, publisher);
             info["publisher"] = publisher;
 
-
             cout << "page_count=";
             getline(cin, page_count);
             info["page_count"] = page_count;
 
-            strcpy(data_matrix[0], info.dump().c_str());
-
-            strcpy(cookies_matrix[0], current_cookie.c_str());
-
-            strcpy(jwt_matrix[0], current_token.c_str());
-
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/library/books", "application/json", data_matrix, 1,  
-                                    jwt_matrix, 1, cookies_matrix, 1);
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/library/books", "application/json", (char *) info.dump().c_str(),  
+                                    (char *) current_token.c_str(), (char *) current_cookie.c_str());
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -276,7 +280,7 @@ int main(int argc, char *argv[])
             cout << result << '\n';
 
             if (result.find("error") != string::npos) {
-                cout << "Failed to add book\n\n\n";
+                cout << "Failed to add book\n";
             }
             else {
                 cout << "Success in adding books!\n";
@@ -292,12 +296,8 @@ int main(int argc, char *argv[])
 
             string url = "/api/v1/tema/library/books/" + id_book;
 
-            strcpy(cookies_matrix[0], current_cookie.c_str());
-
-            strcpy(jwt_matrix[0], current_token.c_str());
-
-            string server_request = compute_delete_request(server_host_ip, (char *) url.c_str(), NULL, 
-                                    NULL, 0, jwt_matrix, 1, cookies_matrix, 1);
+            string server_request = compute_delete_request(server_host_ip, (char *) url.c_str(), NULL, NULL,
+                             (char *) current_token.c_str(), (char *) current_cookie.c_str());
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -317,11 +317,8 @@ int main(int argc, char *argv[])
 
         if (command == "logout") {
 
-            strcpy(cookies_matrix[0], current_cookie.c_str());
-
-            strcpy(jwt_matrix[0], current_token.c_str());
-
-            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/auth/logout", NULL, jwt_matrix, 1, cookies_matrix, 1);
+            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/auth/logout",
+                                 NULL, (char *) current_token.c_str(), (char *) current_cookie.c_str());
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
             string result = receive_from_server(server_socket);
