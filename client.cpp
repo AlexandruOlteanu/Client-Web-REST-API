@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
             char **data_matrix = (char **)malloc(sizeof(char *));
             data_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(data_matrix[0], info.dump().c_str());
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/register", "application/json", data_matrix, 1, NULL, 0);
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/register", "application/json", data_matrix, 1, NULL, 0, NULL, 0);
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
             char **data_matrix = (char **)malloc(sizeof(char *));
             data_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(data_matrix[0], info.dump().c_str());
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/login", "application/json", data_matrix, 1, NULL, 0);
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/login", "application/json", data_matrix, 1, NULL, 0, NULL, 0);
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -230,6 +230,72 @@ int main(int argc, char *argv[])
 
             continue;
         }
+
+        if (command == "add_book") {
+
+            json info;
+
+            string title;
+            string author;
+            string genre;
+            string publisher;
+            string page_count;
+
+            cout << "title=";
+            getline(cin, title);
+            info["title"] = title;
+
+            cout << "author=";
+            getline(cin, author);
+            info["author"] = author;
+
+
+            cout << "genre=";
+            getline(cin, genre);
+            info["genre"] = genre;
+
+
+            cout << "publisher=";
+            getline(cin, publisher);
+            info["publisher"] = publisher;
+
+
+            cout << "page_count=";
+            getline(cin, page_count);
+            info["page_count"] = page_count;
+
+            char **data_matrix = (char **)malloc(sizeof(char *));
+            data_matrix[0] = (char *)malloc(2000 * sizeof(char));
+            strcpy(data_matrix[0], info.dump().c_str());
+
+            char **cookies_matrix = (char **)malloc(sizeof(char *));
+            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
+            strcpy(cookies_matrix[0], current_cookie.c_str());
+
+            char **jwt_matrix = (char **)malloc(sizeof(char *));
+            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
+            strcpy(jwt_matrix[0], current_token.c_str());
+
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/library/books", "application/json", data_matrix, 1,  
+                                    jwt_matrix, 1, cookies_matrix, 1);
+            cout << server_request << '\n';
+            
+            send_to_server(server_socket, (char *) server_request.c_str());
+
+            string result = receive_from_server(server_socket);
+            cout << result << '\n';
+
+            if (result.find("error") != string::npos) {
+                cout << "Failed to get books\n\n\n";
+            }
+            else {
+                cout << "Success in getting the books!\n";
+            }
+            continue;
+
+        }
+
+        
 
         
 

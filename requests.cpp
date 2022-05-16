@@ -52,8 +52,8 @@ char *compute_get_request(char *host, char *url, char *query_params, char **jwt_
     return message;
 }
 
-char *compute_post_request(char *host, char *url, char* content_type, char **body_data,
-                            int body_data_fields_count, char **cookies, int cookies_count)
+char *compute_post_request(char *host, char *url, char* content_type, char **body_data, 
+                            int body_data_fields_count, char **jwt_token, int token_count, char **cookies, int cookies_count)
 {
     char *message = (char *) calloc(BUFLEN, sizeof(char));
     char *line = (char *) calloc(LINELEN, sizeof(char));
@@ -79,14 +79,21 @@ char *compute_post_request(char *host, char *url, char* content_type, char **bod
     sprintf(line, "Content-Type: %s", content_type);
     compute_message(message, line);
 
+    if (jwt_token != NULL && token_count > 0) {
+       sprintf(line, "Authorization: Bearer ");
+       for (int i = 0; i < token_count; ++i) {
+           sprintf(line + strlen(line), "%s ", jwt_token[i]);
+       }
+       compute_message(message, line);
+    }
+
     sprintf(line, "Content-Length: %d", (int) strlen(body_data_buffer));
     compute_message(message, line);
     // Step 4 (optional): add cookies
     if (cookies != NULL && cookies_count > 0) {
        sprintf(line, "Cookie: ");
-       compute_message(message, line);
        for (int i = 0; i < cookies_count; ++i) {
-           sprintf(line + strlen(line), " %s;", cookies[i]);
+           sprintf(line + strlen(line), "%s ", cookies[i]);
        }
        line[strlen(line) - 1] = '\0';
        compute_message(message, line);
