@@ -34,6 +34,18 @@ void add_command_option(string option) {
     command_options.push_back(option);
 }
 
+json get_user_credentials() {
+    json info;
+    string username, password;
+    cout << "username=";
+    cin >> username;
+    cout << "password=";
+    cin >> password;
+    info["username"] = username;
+    info["password"] = password;
+    return info;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -51,6 +63,16 @@ int main(int argc, char *argv[])
 
     string current_cookie = "";
     string current_token = "";
+
+
+    char **data_matrix = (char **)malloc(sizeof(char *));
+    data_matrix[0] = (char *)malloc(100 * sizeof(char));
+
+    char **cookies_matrix = (char **)malloc(sizeof(char *));
+    cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
+
+    char **jwt_matrix = (char **)malloc(sizeof(char *));
+    jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
 
     while (true) {
         int32_t server_socket = -1;
@@ -84,17 +106,8 @@ int main(int argc, char *argv[])
 
         if (command == "register") {
 
-            json info;
-            string username, password;
-            cout << "username=";
-            getline(cin, username);
-            cout << "password=";
-            getline(cin, password);
-            info["username"] = username;
-            info["password"] = password;
+            json info = get_user_credentials();
 
-            char **data_matrix = (char **)malloc(sizeof(char *));
-            data_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(data_matrix[0], info.dump().c_str());
             string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/register", "application/json", data_matrix, 1, NULL, 0, NULL, 0);
             cout << server_request << '\n';
@@ -106,23 +119,15 @@ int main(int argc, char *argv[])
                 cout << "Username is already taken\n";
             }
             else {
-                cout << "New user with username: " << username << " was created!\n";
+                cout << "New user with username: " << info["username"].dump() << " was created!\n";
             }
             continue;
         }
         
         if (command == "login") {
-            json info;
-            string username, password;
-            cout << "username=";
-            getline(cin, username);
-            cout << "password=";
-            getline(cin, password);
-            info["username"] = username;
-            info["password"] = password;
+            
+            json info = get_user_credentials();
 
-            char **data_matrix = (char **)malloc(sizeof(char *));
-            data_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(data_matrix[0], info.dump().c_str());
             string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/login", "application/json", data_matrix, 1, NULL, 0, NULL, 0);
             cout << server_request << '\n';
@@ -148,8 +153,7 @@ int main(int argc, char *argv[])
 
         if (command == "enter_library") {
 
-            char **cookies_matrix = (char **)malloc(sizeof(char *));
-            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
+            
             strcpy(cookies_matrix[0], current_cookie.c_str());
             string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/access", NULL, NULL, 0, cookies_matrix, 1);
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -171,12 +175,8 @@ int main(int argc, char *argv[])
         }
 
         if (command == "get_books") {
-            char **cookies_matrix = (char **)malloc(sizeof(char *));
-            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(cookies_matrix[0], current_cookie.c_str());
 
-            char **jwt_matrix = (char **)malloc(sizeof(char *));
-            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
             strcpy(jwt_matrix[0], current_token.c_str());
 
             string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/books", NULL, jwt_matrix, 1, cookies_matrix, 1);
@@ -203,13 +203,9 @@ int main(int argc, char *argv[])
             cin >> id_book;
 
             string url = "/api/v1/tema/library/books/" + id_book;
-
-            char **cookies_matrix = (char **)malloc(sizeof(char *));
-            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
+            
             strcpy(cookies_matrix[0], current_cookie.c_str());
 
-            char **jwt_matrix = (char **)malloc(sizeof(char *));
-            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
             strcpy(jwt_matrix[0], current_token.c_str());
 
 
@@ -264,16 +260,10 @@ int main(int argc, char *argv[])
             getline(cin, page_count);
             info["page_count"] = page_count;
 
-            char **data_matrix = (char **)malloc(sizeof(char *));
-            data_matrix[0] = (char *)malloc(2000 * sizeof(char));
             strcpy(data_matrix[0], info.dump().c_str());
 
-            char **cookies_matrix = (char **)malloc(sizeof(char *));
-            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(cookies_matrix[0], current_cookie.c_str());
 
-            char **jwt_matrix = (char **)malloc(sizeof(char *));
-            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
             strcpy(jwt_matrix[0], current_token.c_str());
 
             string server_request = compute_post_request(server_host_ip, "/api/v1/tema/library/books", "application/json", data_matrix, 1,  
@@ -302,12 +292,8 @@ int main(int argc, char *argv[])
 
             string url = "/api/v1/tema/library/books/" + id_book;
 
-            char **cookies_matrix = (char **)malloc(sizeof(char *));
-            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(cookies_matrix[0], current_cookie.c_str());
 
-            char **jwt_matrix = (char **)malloc(sizeof(char *));
-            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
             strcpy(jwt_matrix[0], current_token.c_str());
 
             string server_request = compute_delete_request(server_host_ip, (char *) url.c_str(), NULL, 
@@ -331,12 +317,8 @@ int main(int argc, char *argv[])
 
         if (command == "logout") {
 
-            char **cookies_matrix = (char **)malloc(sizeof(char *));
-            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(cookies_matrix[0], current_cookie.c_str());
 
-            char **jwt_matrix = (char **)malloc(sizeof(char *));
-            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
             strcpy(jwt_matrix[0], current_token.c_str());
 
             string server_request = compute_get_request(server_host_ip, "/api/v1/tema/auth/logout", NULL, jwt_matrix, 1, cookies_matrix, 1);
@@ -352,11 +334,7 @@ int main(int argc, char *argv[])
             }
             continue;
 
-        }
-
-        
-
-        
+        }  
 
     }
 
