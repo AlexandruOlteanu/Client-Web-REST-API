@@ -39,7 +39,8 @@ int main(int argc, char *argv[])
 {
     ERROR(argc != 1, "Error, number of arguments");
 
-    char host_ip[] = "34.241.4.235";
+    char server_host_ip[] = "34.241.4.235";
+    int32_t server_port = 8080; 
 
     string message;
     string command;
@@ -53,7 +54,7 @@ int main(int argc, char *argv[])
 
     while (true) {
         int32_t server_socket = -1;
-        server_socket = open_connection(host_ip, 8080, PF_INET, SOCK_STREAM, 0);
+        server_socket = open_connection(server_host_ip, server_port, PF_INET, SOCK_STREAM, 0);
         ERROR(server_socket < 0, "Error, oppening connection failed");
 
         cout << "Enter one of the commands : ";
@@ -95,7 +96,7 @@ int main(int argc, char *argv[])
             char **data_matrix = (char **)malloc(sizeof(char *));
             data_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(data_matrix[0], info.dump().c_str());
-            string server_request = compute_post_request(host_ip, "/api/v1/tema/auth/register", "application/json", data_matrix, 1, NULL, 0);
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/register", "application/json", data_matrix, 1, NULL, 0);
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
             char **data_matrix = (char **)malloc(sizeof(char *));
             data_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(data_matrix[0], info.dump().c_str());
-            string server_request = compute_post_request(host_ip, "/api/v1/tema/auth/login", "application/json", data_matrix, 1, NULL, 0);
+            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/login", "application/json", data_matrix, 1, NULL, 0);
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -150,7 +151,7 @@ int main(int argc, char *argv[])
             char **cookies_matrix = (char **)malloc(sizeof(char *));
             cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
             strcpy(cookies_matrix[0], current_cookie.c_str());
-            string server_request = compute_get_request(host_ip, "/api/v1/tema/library/access", NULL, cookies_matrix, 1);
+            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/access", NULL, NULL, 0, cookies_matrix, 1);
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
@@ -166,6 +167,33 @@ int main(int argc, char *argv[])
             else {
                 cout << "Access Success!\n";
             }
+            continue;
+        }
+
+        if (command == "get_books") {
+            char **cookies_matrix = (char **)malloc(sizeof(char *));
+            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
+            strcpy(cookies_matrix[0], current_cookie.c_str());
+
+            char **jwt_matrix = (char **)malloc(sizeof(char *));
+            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
+            strcpy(jwt_matrix[0], current_token.c_str());
+
+            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/books", NULL, jwt_matrix, 1, cookies_matrix, 1);
+            cout << server_request << '\n';
+            
+            send_to_server(server_socket, (char *) server_request.c_str());
+
+            string result = receive_from_server(server_socket);
+            cout << result << '\n';
+
+            if (result.find("error") != string::npos) {
+                cout << "Failed to get books\n";
+            }
+            else {
+                cout << "Success in getting the books!\n";
+            }
+            continue;
         }
 
         

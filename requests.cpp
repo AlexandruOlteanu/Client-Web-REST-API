@@ -12,7 +12,7 @@
 
 using namespace std;
 
-char *compute_get_request(char *host, char *url, char *query_params,
+char *compute_get_request(char *host, char *url, char *query_params, char **jwt_token, int token_count, 
                             char **cookies, int cookies_count)
 {
     char *message = (char *) calloc(BUFLEN, sizeof(char));
@@ -30,11 +30,19 @@ char *compute_get_request(char *host, char *url, char *query_params,
     // Step 2: add the host
     sprintf(line, "Host: %s", host);
     compute_message(message, line);
+
+    if (jwt_token != NULL && token_count > 0) {
+       sprintf(line, "Authorization: Bearer ");
+       for (int i = 0; i < token_count; ++i) {
+           sprintf(line + strlen(line), "%s ", jwt_token[i]);
+       }
+       compute_message(message, line);
+    }
     // Step 3 (optional): add headers and/or cookies, according to the protocol format
     if (cookies != NULL && cookies_count > 0) {
        sprintf(line, "Cookie: ");
        for (int i = 0; i < cookies_count; ++i) {
-           sprintf(line + strlen(line), "%s; ", cookies[i]);
+           sprintf(line + strlen(line), "%s ", cookies[i]);
        }
        line[strlen(line) - 1] = '\n';
        compute_message(message, line);
