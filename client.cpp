@@ -286,11 +286,46 @@ int main(int argc, char *argv[])
             cout << result << '\n';
 
             if (result.find("error") != string::npos) {
-                cout << "Failed to get books\n\n\n";
+                cout << "Failed to add book\n\n\n";
             }
             else {
-                cout << "Success in getting the books!\n";
+                cout << "Success in adding books!\n";
             }
+            continue;
+        }
+
+        if (command == "delete_book") {
+
+            cout << "id=";
+            string id_book;
+            cin >> id_book;
+
+            string url = "/api/v1/tema/library/books/" + id_book;
+
+            char **cookies_matrix = (char **)malloc(sizeof(char *));
+            cookies_matrix[0] = (char *)malloc(100 * sizeof(char));
+            strcpy(cookies_matrix[0], current_cookie.c_str());
+
+            char **jwt_matrix = (char **)malloc(sizeof(char *));
+            jwt_matrix[0] = (char *)malloc(2000* sizeof(char));
+            strcpy(jwt_matrix[0], current_token.c_str());
+
+            string server_request = compute_delete_request(server_host_ip, (char *) url.c_str(), NULL, 
+                                    NULL, 0, jwt_matrix, 1, cookies_matrix, 1);
+            cout << server_request << '\n';
+            
+            send_to_server(server_socket, (char *) server_request.c_str());
+
+            string result = receive_from_server(server_socket);
+            cout << result << '\n';
+
+            if (result.find("error") != string::npos) {
+                cout << "Failed to delete book with Id: " << id_book << '\n';
+            }
+            else {
+                cout << "Success in deleting the book with Id: " << id_book << '\n';
+            }
+
             continue;
 
         }

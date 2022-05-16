@@ -11,4 +11,7 @@ char *compute_post_request(char *host, char *url, char* content_type, char **bod
 							int body_data_fields_count, char **jwt_token, int token_count, 
 								char** cookies, int cookies_count);
 
+char *compute_delete_request(char *host, char *url, char* content_type, char **body_data, 
+                            int body_data_fields_count, char **jwt_token, int token_count, char **cookies, int cookies_count);
+
 #endif
