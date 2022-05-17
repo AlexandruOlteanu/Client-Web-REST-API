@@ -81,7 +81,7 @@ struct server_links {
     string json_c_type = "application/json";
 };
 
-
+bool get_server_results = false;
 
 int main(int argc, char *argv[])
 {
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         server_socket = open_connection(server.host_ip, server.server_port, PF_INET, SOCK_STREAM, 0);
         ERROR(server_socket < 0, "Error, oppening connection failed");
 
-        cout << "Enter one of the commands : ";
+        cout << "\nEnter one of the commands : ";
         count = 0;
         for (auto option : command_options) {
             ++count;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
         }
         cout << '\n';
 
-        getline(cin, command);
+        cin >> command;
         bool command_found = false;
         for (auto option : command_options) {
             if (command == option) {
@@ -127,7 +127,8 @@ int main(int argc, char *argv[])
             continue;
         }
         if (command == "exit") {
-            shutdown(server_socket, SHUT_RDWR);
+            int32_t check_ret = shutdown(server_socket, SHUT_RDWR);
+            ERROR(check_ret < 0, "Failed to close server");
             break;       
         }
 
@@ -141,13 +142,17 @@ int main(int argc, char *argv[])
             json info = get_user_credentials();
 
             string server_request = compute_post_request(server.host_ip, server.register_url, server.json_c_type, info.dump(), "", "");
-            cout << server_request << '\n';
+
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
-            cout << result << '\n';
+
+            if (get_server_results) {
+                cout << result << '\n';
+            }
+
             if (result.find("error") != string::npos) {
-                cout << "Username is already taken\n";
+                cout << "Username is already taken!\n";
             }
             else {
                 cout << "New user with username: " << info["username"].dump() << " was created!\n";
@@ -165,13 +170,16 @@ int main(int argc, char *argv[])
             json info = get_user_credentials();
 
             string server_request = compute_post_request(server.host_ip, server.login_url, server.json_c_type, info.dump(), "", "");
-            cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
-            cout << result << '\n';
+
+            if (get_server_results) {
+                cout << result << '\n';
+            }
+
             if (result.find("error") != string::npos) {
-                cout << "Invalid Login Data\n";
+                cout << "Error, Credentials are not good!\n";
             }
             else {
                 current_cookie = extract_cookie(result);
@@ -182,27 +190,26 @@ int main(int argc, char *argv[])
         }
 
         if (command == "enter_library") {
-
-            if (!rights.loged_in_on_server) {
-                cout << "Error, not logged in!\n";
-                continue;
-            }
-            
+         
             string server_request = compute_get_request(server.host_ip, server.enter_library_url, "", "", current_cookie);
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
-            result = strstr(result.c_str(), "{");
-            json info;
 
-            info = json::parse(result);
-            current_token = info["token"];
-            cout << current_token << '\n';
+            if (get_server_results) {
+                cout << result << '\n';
+            }
+
             if (result.find("error") != string::npos) {
-                cout << "Invalid Access\n";
+                cout << "Invalid Acceess, Not Logged In!\n";
             }
             else {
-                cout << "Access Success!\n";
+                cout << "Succesfully entered the Library!\n";
+                result = strstr(result.c_str(), "{");
+                json info;
+
+                info = json::parse(result);
+                current_token = info["token"];
             }
             continue;
         }
@@ -210,17 +217,20 @@ int main(int argc, char *argv[])
         if (command == "get_books") {
 
             string server_request = compute_get_request(server.host_ip, server.get_books_url, "", current_token, current_cookie);
-            cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
-            cout << result << '\n';
+
+            if (get_server_results) {
+                cout << result << '\n';
+            }
 
             if (result.find("error") != string::npos) {
-                cout << "Failed to get books\n";
+                cout << "Failed to get books, Not Authorized\n";
             }
             else {
+                cout << result.substr(result.find("[{")) << '\n';
                 cout << "Success in getting the books!\n";
             }
             continue;
@@ -235,17 +245,25 @@ int main(int argc, char *argv[])
             string url = server.get_book_url + id_book;
 
             string server_request = compute_get_request(server.host_ip, url, "", current_token, current_cookie);
-            cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
-            cout << result << '\n';
+
+            if (get_server_results) {
+                cout << result << '\n';
+            }
 
             if (result.find("error") != string::npos) {
-                cout << "Failed to get book with Id: " << id_book << '\n';
+                if (result.find("Authorization") != string::npos) {
+                    cout << "Failed to get book with Id: " << id_book << ", Not Authorized!\n";
+                }
+                else {
+                    cout << "Book with Id: " << id_book << " doesn't exist!\n";
+                }
             }
             else {
+                cout << result.substr(result.find("[{")) << '\n';
                 cout << "Success in getting the book with Id: " << id_book << '\n';
             }
 
@@ -262,6 +280,7 @@ int main(int argc, char *argv[])
             string publisher;
             string page_count;
 
+            getchar();
             cout << "title=";
             getline(cin, title);
             info["title"] = title;
@@ -283,15 +302,21 @@ int main(int argc, char *argv[])
             info["page_count"] = page_count;
 
             string server_request = compute_post_request(server.host_ip, server.add_book_url, server.json_c_type, info.dump(), current_token, current_cookie);
-            cout << server_request << '\n';
-            
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
-            cout << result << '\n';
+
+            if (get_server_results) {
+                cout << result << '\n';
+            }
 
             if (result.find("error") != string::npos) {
-                cout << "Failed to add book\n";
+                if (result.find("Authorization") != string::npos) {
+                    cout << "Failed to add book, Not Authorized!\n";
+                }
+                else {
+                    cout << "Book data format is not correct!\n";
+                }
             }
             else {
                 cout << "Success in adding books!\n";
@@ -309,15 +334,22 @@ int main(int argc, char *argv[])
 
             string server_request = compute_delete_request(server.host_ip, url, "", "",
                              current_token, current_cookie);
-            cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
-            cout << result << '\n';
+
+            if (get_server_results) {
+                cout << result << '\n';
+            }
 
             if (result.find("error") != string::npos) {
-                cout << "Failed to delete book with Id: " << id_book << '\n';
+                if (result.find("Authorization") != string::npos) {
+                    cout << "Failed to delete book, Not Authorized!\n";
+                }
+                else {
+                    cout << "Book with Id: " << id_book << " doesn't exist\n";
+                }
             }
             else {
                 cout << "Success in deleting the book with Id: " << id_book << '\n';
@@ -328,17 +360,23 @@ int main(int argc, char *argv[])
 
         if (command == "logout") {
 
-            string server_request = compute_get_request(server.host_ip, server.logout_url,
-                                 "", current_token, current_cookie);
-            cout << server_request << '\n';
+            string server_request = compute_get_request(server.host_ip, server.logout_url, "", current_token, current_cookie);
+
             send_to_server(server_socket, (char *) server_request.c_str());
             string result = receive_from_server(server_socket);
-            cout << result << '\n';
+
+            if (get_server_results) {
+                cout << result << '\n';
+            }
+
             if (result.find("error") != string::npos) {
-                cout << "Invalid Logout\n";
+                cout << "You are not Logged In\n";
             }
             else {
-                cout << "Logout Success!\n";
+                rights.loged_in_on_server = false;
+                current_cookie = "";
+                current_token = "";
+                cout << "Logout with success!\n";
             }
             continue;
 

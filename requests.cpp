@@ -1,12 +1,4 @@
 #include <bits/stdc++.h>
-#include <stdlib.h>     /* exit, atoi, malloc, free */
-#include <stdio.h>
-#include <unistd.h>     /* read, write, close */
-#include <string.h>     /* memcpy, memset */
-#include <sys/socket.h> /* socket, connect */
-#include <netinet/in.h> /* struct sockaddr_in, struct sockaddr */
-#include <netdb.h>      /* struct hostent, gethostbyname */
-#include <arpa/inet.h>
 #include "helpers.h"
 #include "requests.h"
 
@@ -16,7 +8,6 @@ string compute_get_request(string host, string url, string query_params, string 
 {
     string message;
 
-    // Step 1: write the method name, URL, request params (if any) and protocol type
     if (query_params != "") {
         message += "GET " + url + "?" + query_params + " HTTP/1.1";
     } else {
@@ -30,14 +21,12 @@ string compute_get_request(string host, string url, string query_params, string 
     if (access_token != "") {
        message += "Authorization: Bearer " + access_token + "\r\n";
     }
-    
-    // // Step 4 (optional): add cookies
+
     if (cookie != "") {
         message += "Cookie: " + cookie + "\r\n";
     }
-    // // Step 5: add new line at end of header
+
     message += "\r\n";
-    // Step 6: add the actual payload data
 
     return message;
 }
@@ -57,7 +46,7 @@ string compute_post_request(string host, string url, string content_type, string
     string message;
 
     message = "POST " + url + " HTTP/1.1" + "\r\n";
-    // Step 1: write the method name, URL and protocol type
+
     message += "Host: " + host + "\r\n";
 
     message += "Content-Type: " + content_type + "\r\n";
@@ -68,13 +57,12 @@ string compute_post_request(string host, string url, string content_type, string
        message += "Authorization: Bearer " + access_token + "\r\n";
     }
     
-    // // Step 4 (optional): add cookies
     if (cookie != "") {
         message += "Cookie: " + cookie + "\r\n";
     }
-    // // Step 5: add new line at end of header
+
     message += "\r\n";
-    // Step 6: add the actual payload data
+
     message += data + "\r\n";
 
     return message;
@@ -85,20 +73,19 @@ string compute_delete_request(string host, string url, string content_type, stri
     string message;
 
     message = "DELETE " + url + " HTTP/1.1" + "\r\n";
-    // Step 1: write the method name, URL and protocol type
+
     message += "Host: " + host + "\r\n";
 
     if (access_token != "") {
        message += "Authorization: Bearer " + access_token + "\r\n";
     }
     
-    // // Step 4 (optional): add cookies
     if (cookie != "") {
         message += "Cookie: " + cookie + "\r\n";
     }
-    // // Step 5: add new line at end of header
+
     message += "\r\n";
-    // Step 6: add the actual payload data
+
     message += data + "\r\n";
 
     return message;
