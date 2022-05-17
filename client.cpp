@@ -65,15 +65,27 @@ string extract_cookie(string initial) {
         ++i;
     }
     return "";
-}   
+}
+
+struct server_links {
+    int32_t server_port = 8080;
+    char host_ip[MAX_SIZE] = "34.241.4.235";
+    string register_url = "/api/v1/tema/auth/register";
+    string login_url = "/api/v1/tema/auth/login";
+    string enter_library_url = "/api/v1/tema/library/access";
+    string get_books_url = "/api/v1/tema/library/books";
+    string get_book_url = "/api/v1/tema/library/books/";
+    string add_book_url = "/api/v1/tema/library/books";
+    string delete_book_url = "/api/v1/tema/library/books/";
+    string logout_url = "/api/v1/tema/auth/logout";
+    string json_c_type = "application/json";
+};
+
 
 
 int main(int argc, char *argv[])
 {
     ERROR(argc != 1, "Error, number of arguments");
-
-    char server_host_ip[] = "34.241.4.235";
-    int32_t server_port = 8080; 
 
     string message;
     string command;
@@ -86,10 +98,12 @@ int main(int argc, char *argv[])
     string current_token = "";
 
     needed_rights rights;
+
+    server_links server;
     
     while (true) {
         int32_t server_socket = -1;
-        server_socket = open_connection(server_host_ip, server_port, PF_INET, SOCK_STREAM, 0);
+        server_socket = open_connection(server.host_ip, server.server_port, PF_INET, SOCK_STREAM, 0);
         ERROR(server_socket < 0, "Error, oppening connection failed");
 
         cout << "Enter one of the commands : ";
@@ -126,7 +140,7 @@ int main(int argc, char *argv[])
 
             json info = get_user_credentials();
 
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/register", "application/json", (char *) info.dump().c_str(), NULL, NULL);
+            string server_request = compute_post_request(server.host_ip, server.register_url, server.json_c_type, info.dump(), "", "");
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -150,7 +164,7 @@ int main(int argc, char *argv[])
 
             json info = get_user_credentials();
 
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/auth/login", "application/json", (char *) info.dump().c_str(), NULL, NULL);
+            string server_request = compute_post_request(server.host_ip, server.login_url, server.json_c_type, info.dump(), "", "");
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
 
@@ -174,7 +188,7 @@ int main(int argc, char *argv[])
                 continue;
             }
             
-            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/access", NULL, NULL, (char *) current_cookie.c_str());
+            string server_request = compute_get_request(server.host_ip, server.enter_library_url, "", "", current_cookie);
             send_to_server(server_socket, (char *) server_request.c_str());
 
             string result = receive_from_server(server_socket);
@@ -195,8 +209,7 @@ int main(int argc, char *argv[])
 
         if (command == "get_books") {
 
-            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/library/books", NULL,
-                                         (char *) current_token.c_str(), (char *) current_cookie.c_str());
+            string server_request = compute_get_request(server.host_ip, server.get_books_url, "", current_token, current_cookie);
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -219,10 +232,9 @@ int main(int argc, char *argv[])
             string id_book;
             cin >> id_book;
 
-            string url = "/api/v1/tema/library/books/" + id_book;
+            string url = server.get_book_url + id_book;
 
-            string server_request = compute_get_request(server_host_ip, (char *) url.c_str(), NULL,
-                                 (char *) current_token.c_str(), (char *) current_cookie.c_str());
+            string server_request = compute_get_request(server.host_ip, url, "", current_token, current_cookie);
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -270,8 +282,7 @@ int main(int argc, char *argv[])
             getline(cin, page_count);
             info["page_count"] = page_count;
 
-            string server_request = compute_post_request(server_host_ip, "/api/v1/tema/library/books", "application/json", (char *) info.dump().c_str(),  
-                                    (char *) current_token.c_str(), (char *) current_cookie.c_str());
+            string server_request = compute_post_request(server.host_ip, server.add_book_url, server.json_c_type, info.dump(), current_token, current_cookie);
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -294,10 +305,10 @@ int main(int argc, char *argv[])
             string id_book;
             cin >> id_book;
 
-            string url = "/api/v1/tema/library/books/" + id_book;
+            string url = server.delete_book_url + id_book;
 
-            string server_request = compute_delete_request(server_host_ip, (char *) url.c_str(), NULL, NULL,
-                             (char *) current_token.c_str(), (char *) current_cookie.c_str());
+            string server_request = compute_delete_request(server.host_ip, url, "", "",
+                             current_token, current_cookie);
             cout << server_request << '\n';
             
             send_to_server(server_socket, (char *) server_request.c_str());
@@ -317,8 +328,8 @@ int main(int argc, char *argv[])
 
         if (command == "logout") {
 
-            string server_request = compute_get_request(server_host_ip, "/api/v1/tema/auth/logout",
-                                 NULL, (char *) current_token.c_str(), (char *) current_cookie.c_str());
+            string server_request = compute_get_request(server.host_ip, server.logout_url,
+                                 "", current_token, current_cookie);
             cout << server_request << '\n';
             send_to_server(server_socket, (char *) server_request.c_str());
             string result = receive_from_server(server_socket);
