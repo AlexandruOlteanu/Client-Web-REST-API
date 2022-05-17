@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
                 cout << "Failed to get books, Not Authorized\n";
             }
             else {
-                cout << result.substr(result.find("[{")) << '\n';
+                cout << result.substr(result.find("[")) << '\n';
                 cout << "Success in getting the books!\n";
             }
             continue;
@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
                 }
             }
             else {
-                cout << result.substr(result.find("[{")) << '\n';
+                cout << result.substr(result.find("[")) << '\n';
                 cout << "Success in getting the book with Id: " << id_book << '\n';
             }
 
